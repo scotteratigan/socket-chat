@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font: 13px Helvetica, Arial;
+      }
+      form {
+        background: #000;
+        padding: 3px;
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+      }
+      form input {
+        border: 0;
+        padding: 10px;
+        width: 90%;
+        margin-right: 0.5%;
+      }
+      form button {
+        width: 9%;
+        background: rgb(130, 224, 255);
+        border: none;
+        padding: 10px;
+      }
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+      #messages li {
+        padding: 5px 10px;
+      }
+      #messages li:nth-child(odd) {
+        background: #eee;
+      }
+      #activity {
+        background-color: aquamarine;
+        height: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <label>Enter username:<input id="username"/></label>
+    <div id="activity"></div>
+    <ul id="messages"></ul>
+    <form action="">
+      <input id="m" autocomplete="off" /><button>Send</button>
+    </form>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+      $(function() {
+        const socket = io();
+        $("form").submit(function(e) {
+          e.preventDefault(); // prevents page reloading
+          socket.emit(
+            "chat message",
+            $("#username").val() + ": " + $("#m").val()
+          );
+          $("#m").val("");
+          return false; // eh?
+        });
+        $("#m").keydown(() => {
+          socket.emit("typing", $("#username").val());
+        });
+        socket.on("chat message", function(msg) {
+          $("#messages").append($("<li>").text(msg));
+        });
+        var timeoutVar = null;
+        const typersObj = {};
+        socket.on("typing", name => {
+          typersObj[name] = getSecondsSinceEpoch();
+          displayTypers();
+        });
+        function displayTypers() {
+          for (const typer in typersObj) {
+            const inactiveSeconds = getSecondsSinceEpoch() - typersObj[typer];
+            if (inactiveSeconds >= 4) delete typersObj[typer];
+          }
+          const typers = Object.keys(typersObj);
+          const userName = $("#username").val();
+          const activityElm = $("#activity");
+          if (typers.length === 0) {
+            activityElm.text("");
+            return;
+          }
+          const typerString = typers
+            .map(typerName => {
+              console.log(typerName, userName);
+              if (typerName == userName) return "You";
+              return typerName;
+            })
+            .join(", ");
+          console.log("typers:", typers);
+          activityElm.text("Currently typing: " + typerString);
+        }
+        setInterval(displayTypers, 1000);
+
+        function getSecondsSinceEpoch() {
+          return Math.floor(new Date() / 1000);
+        }
+      });
+    </script>
+  </body>
+</html>
